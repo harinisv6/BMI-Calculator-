@@ -1,7 +1,6 @@
 fastapi
 uvicorn
-mysql-connector-python
-cryptography>=41.0.0
 pydantic
+cryptography
 
 
