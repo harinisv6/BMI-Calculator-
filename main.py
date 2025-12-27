@@ -9,8 +9,9 @@ app = FastAPI()
 db = mysql.connector.connect(
     host="localhost",
     user="root",
-    password="password",
-    database="bmi_app"
+    password="shinchannohara",
+    database="bmi_app",
+    port=3306
 )
 cursor = db.cursor()
 
