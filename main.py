@@ -1,17 +1,19 @@
+
+import os
+import mysql.connector
 from fastapi import FastAPI
 from pydantic import BaseModel
-import mysql.connector
 from cryptography.fernet import Fernet
 
 app = FastAPI()
 
-# DB CONNECTION
+# DB
 db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="shinchannohara",
-    database="bmi_app",
-    port=3306
+    host=os.getenv("DB_HOST"),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    database=os.getenv("DB_NAME"),
+    port=int(os.getenv("DB_PORT", 3306))
 )
 cursor = db.cursor()
 
