@@ -5,11 +5,9 @@ from pydantic import BaseModel
 from cryptography.fernet import Fernet
 
 app = FastAPI()
-
 # --------- DATABASE (SQLite) ----------
 conn = sqlite3.connect("bmi.db", check_same_thread=False)
 cursor = conn.cursor()
-
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS bmi_records (
     weight_enc TEXT NOT NULL,
@@ -35,13 +33,11 @@ class BMIInput(BaseModel):
 
 # --------- BMI STATUS + DIET ----------
 def bmi_status(bmi: float, weight: float, height: float):
-
     height_m = height / 100
 
     # Ideal weight range
     min_weight = 18.5 * (height_m ** 2)
     max_weight = 24.9 * (height_m ** 2)
-
     min_weight = round(min_weight,2)
     max_weight = round(max_weight,2)
 
@@ -58,7 +54,6 @@ def bmi_status(bmi: float, weight: float, height: float):
             "Potatoes",
             "Nuts & dry fruits"
         ]
-
         return (
             "Underweight",
             f"You need to gain about {gain} kg to reach a healthy weight.",
@@ -77,7 +72,6 @@ def bmi_status(bmi: float, weight: float, height: float):
             "Nuts",
             "Healthy home food"
         ]
-
         return (
             "Normal",
             "Your weight is healthy. Maintain your current lifestyle.",
@@ -97,7 +91,6 @@ def bmi_status(bmi: float, weight: float, height: float):
             "Grilled chicken",
             "Green tea"
         ]
-
         return (
             "Overweight",
             f"You should reduce about {reduce} kg to reach a healthy weight.",
@@ -107,14 +100,10 @@ def bmi_status(bmi: float, weight: float, height: float):
 # --------- API ----------
 @app.post("/bmi")
 def calculate_bmi(data: BMIInput):
-
     weight_enc = encrypt_value(str(data.weight))
     height_enc = encrypt_value(str(data.height))
-
     bmi = round(data.weight / ((data.height / 100) ** 2), 2)
-
     status, advice, foods = bmi_status(bmi, data.weight, data.height)
-
     cursor.execute(
         """
         INSERT INTO bmi_records (weight_enc, height_enc, bmi, status, advice)
@@ -123,7 +112,6 @@ def calculate_bmi(data: BMIInput):
         (weight_enc, height_enc, bmi, status, advice)
     )
     conn.commit()
-
     return {
         "bmi": bmi,
         "status": status,
