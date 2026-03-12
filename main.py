@@ -1,4 +1,3 @@
-# main.py
 import sqlite3
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -6,12 +5,13 @@ from cryptography.fernet import Fernet
 
 app = FastAPI()
 
-# --------- DATABASE (SQLite) ----------
+# ---------------- DATABASE ----------------
 conn = sqlite3.connect("bmi.db", check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS bmi_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     weight_enc TEXT NOT NULL,
     height_enc TEXT NOT NULL,
     bmi REAL NOT NULL,
@@ -21,33 +21,30 @@ CREATE TABLE IF NOT EXISTS bmi_records (
 """)
 conn.commit()
 
-# --------- ENCRYPTION ----------
+# ---------------- ENCRYPTION ----------------
 FERNET_KEY = b'O-kN4m4NGeO9nz9JlZBCnsnPMandHr246jkURuRXVLA='
 fernet = Fernet(FERNET_KEY)
 
 def encrypt_value(value: str) -> str:
     return fernet.encrypt(value.encode()).decode()
 
-# --------- BMI MODEL ----------
+# ---------------- INPUT MODEL ----------------
 class BMIInput(BaseModel):
     weight: float
     height: float
 
-# --------- BMI STATUS + DIET ----------
+# ---------------- BMI STATUS FUNCTION ----------------
 def bmi_status(bmi: float, weight: float, height: float):
 
     height_m = height / 100
 
-    # Ideal weight range
-    min_weight = 18.5 * (height_m ** 2)
-    max_weight = 24.9 * (height_m ** 2)
-
-    min_weight = round(min_weight,2)
-    max_weight = round(max_weight,2)
+    min_weight = round(18.5 * (height_m ** 2), 2)
+    max_weight = round(24.9 * (height_m ** 2), 2)
 
     # UNDERWEIGHT
     if bmi < 18.5:
-        gain = round(min_weight - weight,2)
+
+        gain = round(min_weight - weight, 2)
 
         foods = [
             "Milk",
@@ -86,7 +83,8 @@ def bmi_status(bmi: float, weight: float, height: float):
 
     # OVERWEIGHT
     else:
-        reduce = round(weight - max_weight,2)
+
+        reduce = round(weight - max_weight, 2)
 
         foods = [
             "Oats",
@@ -104,17 +102,23 @@ def bmi_status(bmi: float, weight: float, height: float):
             foods
         )
 
-# --------- API ----------
+# ---------------- BMI API ----------------
 @app.post("/bmi")
 def calculate_bmi(data: BMIInput):
 
-    weight_enc = encrypt_value(str(data.weight))
-    height_enc = encrypt_value(str(data.height))
+    weight = data.weight
+    height = data.height
 
-    bmi = round(data.weight / ((data.height / 100) ** 2), 2)
+    # Encrypt values
+    weight_enc = encrypt_value(str(weight))
+    height_enc = encrypt_value(str(height))
 
-    status, advice, foods = bmi_status(bmi, data.weight, data.height)
+    # Calculate BMI
+    bmi = round(weight / ((height / 100) ** 2), 2)
 
+    status, advice, foods = bmi_status(bmi, weight, height)
+
+    # Store in database
     cursor.execute(
         """
         INSERT INTO bmi_records (weight_enc, height_enc, bmi, status, advice)
@@ -122,6 +126,7 @@ def calculate_bmi(data: BMIInput):
         """,
         (weight_enc, height_enc, bmi, status, advice)
     )
+
     conn.commit()
 
     return {
@@ -129,12 +134,26 @@ def calculate_bmi(data: BMIInput):
         "status": status,
         "advice": advice,
         "recommended_foods": foods,
-        "message": "BMI calculated & stored securely"
+        "message": "BMI calculated and stored securely"
     }
 
-# --------- VIEW RECORDS ----------
+# ---------------- VIEW RECORDS ----------------
 @app.get("/records")
 def get_records():
-    cursor.execute("SELECT weight_enc, height_enc, bmi, status, advice FROM bmi_records")
+
+    cursor.execute("SELECT id, weight_enc, height_enc, bmi, status, advice FROM bmi_records")
     rows = cursor.fetchall()
-    return {"records": rows}
+
+    records = []
+
+    for row in rows:
+        records.append({
+            "id": row[0],
+            "weight_encrypted": row[1],
+            "height_encrypted": row[2],
+            "bmi": row[3],
+            "status": row[4],
+            "advice": row[5]
+        })
+
+    return {"records": records}
